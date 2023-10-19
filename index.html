@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de LEDs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"
+        type="text/javascript"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .button-container {
+            display: flex;
+        }
+
+        button {
+            font-size: 20px;
+            padding: 20px 40px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            transition: transform 0.1s;
+        }
+
+        .selected {
+            box-shadow: 0 0 10px 3px #FFF;
+        }
+
+        #verde.selected,
+        #vermelho.selected,
+        #branco.selected,
+        #azul.selected {
+            box-shadow: none;
+        }
+
+        #verde {
+            background-color: #888;
+        }
+
+        #vermelho {
+            background-color: #888;
+        }
+
+        #branco {
+            background-color: #888;
+            color: black;
+        }
+
+        #azul {
+            background-color: #888;
+        }
+
+        #apagar {
+            background-color: #555;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="button-container">
+        <button id="verde" onclick="publicar('verde')">Verde</button>
+        <button id="vermelho" onclick="publicar('vermelho')">Vermelho</button>
+        <button id="branco" onclick="publicar('branco')">Branco</button>
+        <button id="azul" onclick="publicar('azul')">Azul</button>
+    </div>
+    <button id="apagar" onclick="publicar('apagar')">Apagar Tudo</button>
+
+    <script>
+        var client = new Paho.MQTT.Client("test.mosquitto.org", 8081, "clientId");
+
+        client.onConnectionLost = onConnectionLost;
+
+        client.connect({ onSuccess: onConnect });
+
+        window.onload = function() {
+            client.connect({
+                onSuccess: onConnect,
+                onFailure: onFailure
+            });
+        };
+
+
+        const ledStates = {
+            verde: false,
+            vermelho: false,
+            branco: false,
+            azul: false
+        };
+
+        function onConnect() {
+            console.log("Conectado ao broker MQTT");
+        }
+    
+        function onConnected(reconnect, uri) {
+            console.log('Conectado ao broker MQTT. URI: ' + uri + ', Reconectado: ' + reconnect);
+        }
+
+        function onFailure(invocationContext, errorCode, errorMessage) {
+            console.log("Falha na conexão: " + errorMessage);
+        }
+
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0) {
+                console.log("Conexão perdida: " + responseObject.errorMessage);
+            }
+        }
+
+        function publicar(cor) {
+            var message = new Paho.MQTT.Message(cor);
+            message.destinationName = "aldrumont/insidegg";
+            client.send(message);
+            console.log("Mensagem enviada: " + cor);
+
+            const button = document.getElementById(cor);
+
+            if (cor !== 'apagar') {
+                if (ledStates[cor]) {
+                    button.style.backgroundColor = '#888';
+                } else {
+                    button.style.backgroundColor = getButtonActiveColor(cor);
+                }
+                ledStates[cor] = !ledStates[cor];
+            } else {
+                document.querySelectorAll('.button-container button').forEach(button => {
+                    button.style.backgroundColor = '#888';
+                });
+                Object.keys(ledStates).forEach(key => ledStates[key] = false);
+            }
+        }
+
+        function getButtonActiveColor(cor) {
+            const colors = {
+                verde: '#00FF00',
+                vermelho: '#FF0000',
+                branco: '#FFFFFF',
+                azul: '#0000FF'
+            };
+
+            return colors[cor];
+        }
+    </script>
+</body>
+
+</html>
